@@ -163,8 +163,12 @@ static void nhrp_interface_update_nbma(struct interface *ifp)
 	}
 
 	if (nbmaifp) {
-		if (sockunion_family(&nbma) == AF_UNSPEC)
-			nbma = nbmanifp->afi[AFI_IP].addr;
+		if (sockunion_family(&nbma) == AF_UNSPEC) {
+			if (ifp->ll_type == ZEBRA_LLT_IP6GRE)
+				nbma = nbmanifp->afi[AFI_IP6].addr;
+			else
+				nbma = nbmanifp->afi[AFI_IP].addr;
+		}
 		nhrp_interface_update_mtu(ifp, AFI_IP);
 		nhrp_interface_update_source(ifp);
 	}
@@ -196,6 +200,9 @@ static void nhrp_interface_update_address(struct interface *ifp, afi_t afi,
 	best = NULL;
 	for (ALL_LIST_ELEMENTS_RO(ifp->connected, cnode, c)) {
 		if (PREFIX_FAMILY(c->address) != family)
+			continue;
+		if (PREFIX_FAMILY(c->address) == AF_INET6
+		    && IN6_IS_ADDR_LINKLOCAL(&c->address->u.prefix6))
 			continue;
 		if (best == NULL) {
 			best = c;
