@@ -549,7 +549,7 @@ DEFUN(if_no_nhrp_map, if_no_nhrp_map_cmd,
 }
 
 DEFUN(if_nhrp_nhs, if_nhrp_nhs_cmd,
-	AFI_CMD " nhrp nhs <A.B.C.D|X:X::X:X|dynamic> nbma <A.B.C.D|FQDN>",
+	AFI_CMD " nhrp nhs <A.B.C.D|X:X::X:X|dynamic> nbma <A.B.C.D|X:X::X:X|FQDN>",
 	AFI_STR
 	NHRP_STR
 	"Nexthop Server configuration\n"
@@ -558,6 +558,7 @@ DEFUN(if_nhrp_nhs, if_nhrp_nhs_cmd,
 	"Automatic detection of protocol address\n"
 	"NBMA address\n"
 	"IPv4 NBMA address\n"
+	"IPv6 NBMA address\n"
 	"Fully qualified domain name for NBMA address(es)\n")
 {
 	VTY_DECLVAR_CONTEXT(interface, ifp);
@@ -573,7 +574,7 @@ DEFUN(if_nhrp_nhs, if_nhrp_nhs_cmd,
 }
 
 DEFUN(if_no_nhrp_nhs, if_no_nhrp_nhs_cmd,
-	"no " AFI_CMD " nhrp nhs <A.B.C.D|X:X::X:X|dynamic> nbma <A.B.C.D|FQDN>",
+	"no " AFI_CMD " nhrp nhs <A.B.C.D|X:X::X:X|dynamic> nbma <A.B.C.D|X:X::X:X|FQDN>",
 	NO_STR
 	AFI_STR
 	NHRP_STR
@@ -583,6 +584,7 @@ DEFUN(if_no_nhrp_nhs, if_no_nhrp_nhs_cmd,
 	"Automatic detection of protocol address\n"
 	"NBMA address\n"
 	"IPv4 NBMA address\n"
+	"IPv6 NBMA address\n"
 	"Fully qualified domain name for NBMA address(es)\n")
 {
 	VTY_DECLVAR_CONTEXT(interface, ifp);
