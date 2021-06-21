@@ -1256,6 +1256,7 @@ const char *if_link_type_str(enum zebra_link_type llt)
 		llts(ZEBRA_LLT_SIT, "IPv6-in-IPv4 SIT");
 		llts(ZEBRA_LLT_IPDDP, "IP-in-DDP tunnel");
 		llts(ZEBRA_LLT_IPGRE, "GRE over IP");
+		llts(ZEBRA_LLT_IP6GRE, "GRE over IPv6");
 		llts(ZEBRA_LLT_PIMREG, "PIMSM registration");
 		llts(ZEBRA_LLT_HIPPI, "HiPPI");
 		llts(ZEBRA_LLT_IRDA, "IrDA");

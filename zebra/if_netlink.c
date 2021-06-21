@@ -30,10 +30,9 @@
  */
 #define _LINUX_IN6_H
 
-#include <netinet/if_ether.h>
 #include <linux/if_bridge.h>
 #include <linux/if_link.h>
-#include <net/if_arp.h>
+#include <linux/if_arp.h>
 #include <linux/sockios.h>
 #include <linux/ethtool.h>
 
@@ -1429,6 +1428,8 @@ int netlink_link_change(struct nlmsghdr *h, ns_id_t ns_id, int startup)
 
 			/* Update link. */
 			zebra_if_update_link(ifp, link_ifindex, ns_id);
+
+			ifp->ll_type = netlink_to_zebra_link_type(ifi->ifi_type);
 
 			netlink_interface_update_hw_addr(tb, ifp);
 
