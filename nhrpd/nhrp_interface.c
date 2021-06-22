@@ -100,20 +100,38 @@ static void nhrp_interface_interface_notifier(struct notifier_block *n,
 	struct interface *nbmaifp = nifp->nbmaifp;
 	struct nhrp_interface *nbmanifp = nbmaifp->info;
 	char buf[SU_ADDRSTRLEN];
+	afi_t afi = AFI_IP;
+
+	if (nifp->ifp->ll_type == ZEBRA_LLT_IP6GRE)
+		afi = AFI_IP6;
 
 	switch (cmd) {
 	case NOTIFY_INTERFACE_CHANGED:
+		/* TODO: double-check how address family is used */
 		nhrp_interface_update_mtu(nifp->ifp, AFI_IP);
 		nhrp_interface_update_source(nifp->ifp);
 		break;
 	case NOTIFY_INTERFACE_ADDRESS_CHANGED:
-		nifp->nbma = nbmanifp->afi[AFI_IP].addr;
+		nifp->nbma = nbmanifp->afi[afi].addr;
 		nhrp_interface_update(nifp->ifp);
 		notifier_call(&nifp->notifier_list,
 			      NOTIFY_INTERFACE_NBMA_CHANGED);
-		debugf(NHRP_DEBUG_IF, "%s: NBMA change: address %s",
+		debugf(NHRP_DEBUG_IF, "%s: NBMA change for a %s tunnel: address %s",
 		       nifp->ifp->name,
+		       if_link_type_str(nifp->ifp->ll_type),
 		       sockunion2str(&nifp->nbma, buf, sizeof(buf)));
+		if (afi == AFI_IP6) {
+			if (sockunion_family(&nifp->nbma) == AF_INET6) {
+				netlink_gre6_set_local_addr(nifp->ifp->ifindex,
+							    sockunion_get_addr(&nifp->nbma),
+							    sockunion_get_addrlen(&nifp->nbma));
+			}
+			else if (sockunion_family(&nifp->nbma) == AF_UNSPEC) {
+				netlink_gre6_set_local_addr(nifp->ifp->ifindex,
+							    &in6addr_any,
+							    sizeof(struct in6_addr));
+			}
+		}
 		break;
 	}
 }
@@ -175,9 +193,17 @@ static void nhrp_interface_update_nbma(struct interface *ifp)
 	}
 
 	if (!sockunion_same(&nbma, &nifp->nbma)) {
+		char buf[SU_ADDRSTRLEN];
 		nifp->nbma = nbma;
+		if (sockunion_family(&nifp->nbma) == AF_INET6) {
+			netlink_gre6_set_local_addr(nifp->ifp->ifindex,
+						    sockunion_get_addr(&nifp->nbma),
+						    sockunion_get_addrlen(&nifp->nbma));
+		}
 		nhrp_interface_update(nifp->ifp);
-		debugf(NHRP_DEBUG_IF, "%s: NBMA address changed", ifp->name);
+		debugf(NHRP_DEBUG_IF, "%s: NBMA address changed to %s",
+		       ifp->name,
+		       sockunion2str(&nifp->nbma, buf, sizeof(buf)));
 		notifier_call(&nifp->notifier_list,
 			      NOTIFY_INTERFACE_NBMA_CHANGED);
 	}

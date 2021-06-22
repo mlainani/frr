@@ -25,3 +25,5 @@ void netlink_gre_get_info(unsigned int ifindex, uint32_t *gre_key,
 			  unsigned int *link_index, struct in_addr *saddr);
 void netlink_gre_set_link(unsigned int ifindex, unsigned int link_index,
 			  const char *link_kind);
+void netlink_gre6_set_local_addr(unsigned int ifindex, const void *addr,
+				 size_t addrlen);

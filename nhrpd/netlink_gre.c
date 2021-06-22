@@ -150,3 +150,45 @@ err:
 	zbuf_free(zb);
 	zbuf_free(zr);
 }
+
+void netlink_gre6_set_local_addr(unsigned int ifindex, const void *addr,
+				 size_t addrlen)
+{
+	struct nlmsghdr *n;
+	struct ifinfomsg *ifi;
+	struct rtattr *rta_info, *rta_data, *rta;
+	struct zbuf *zr = zbuf_alloc(8192), data, rtapl;
+	struct zbuf *zb = zbuf_alloc(8192);
+	size_t len;
+
+	if (__netlink_gre_get_data(zr, &data, ifindex) < 0)
+		goto err;
+
+	n = znl_nlmsg_push(zb, RTM_NEWLINK, NLM_F_REQUEST);
+	ifi = znl_push(zb, sizeof(*ifi));
+	*ifi = (struct ifinfomsg){
+		.ifi_index = ifindex,
+	};
+
+	rta_info = znl_rta_nested_push(zb, IFLA_LINKINFO);
+	znl_rta_push(zb, IFLA_INFO_KIND, "ip6gre", 6);
+
+	rta_data = znl_rta_nested_push(zb, IFLA_INFO_DATA);
+	znl_rta_push(zb, IFLA_GRE_LOCAL, addr, addrlen);
+	while ((rta = znl_rta_pull(&data, &rtapl)) != NULL) {
+		if (rta->rta_type == IFLA_GRE_LOCAL)
+			continue;
+		len = zbuf_used(&rtapl);
+		znl_rta_push(zb, rta->rta_type, zbuf_pulln(&rtapl, len), len);
+	}
+
+	znl_rta_nested_complete(zb, rta_data);
+	znl_rta_nested_complete(zb, rta_info);
+
+	znl_nlmsg_complete(zb, n);
+	zbuf_send(zb, netlink_req_fd);
+	zbuf_recv(zb, netlink_req_fd);
+err:
+	zbuf_free(zb);
+	zbuf_free(zr);
+}
