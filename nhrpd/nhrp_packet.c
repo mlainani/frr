@@ -19,6 +19,7 @@
 
 #include "nhrp_protocol.h"
 #include "os.h"
+#include "debug.h"
 
 struct nhrp_reqid_pool nhrp_packet_reqid;
 
@@ -338,8 +339,61 @@ err:
 	return 0;
 }
 
+static int nhrp_packet_gre6_recvraw(struct thread *t)
+{
+	int fd = THREAD_FD(t), ifindex;
+	struct zbuf *zb;
+	struct interface *ifp;
+	struct nhrp_peer *p;
+	union sockunion remote_nbma;
+	uint8_t addr[64];
+	size_t len, addrlen;
+
+	thread_add_read(master, nhrp_packet_gre6_recvraw, 0, fd, NULL);
+
+	zb = zbuf_alloc(1500);
+	if (!zb)
+		return 0;
+
+	len = zbuf_size(zb);
+	addrlen = sizeof(addr);
+	if (os_gre6_recvmsg(zb->buf, &len, &ifindex) < 0)
+		goto err;
+
+	debugf(NHRP_DEBUG_EVENT, "len: %d  ifindex: %d", len, ifindex);
+	goto err;
+
+	zb->head = zb->buf;
+	zb->tail = zb->buf + len;
+
+	switch (addrlen) {
+	case 4:
+		sockunion_set(&remote_nbma, AF_INET, addr, addrlen);
+		break;
+	default:
+		goto err;
+	}
+
+	ifp = if_lookup_by_index(ifindex, VRF_DEFAULT);
+	if (!ifp)
+		goto err;
+
+	p = nhrp_peer_get(ifp, &remote_nbma);
+	if (!p)
+		goto err;
+
+	nhrp_peer_recv(p, zb);
+	nhrp_peer_unref(p);
+	return 0;
+
+err:
+	zbuf_free(zb);
+	return 0;
+}
+
 int nhrp_packet_init(void)
 {
 	thread_add_read(master, nhrp_packet_recvraw, 0, os_socket(), NULL);
+	thread_add_read(master, nhrp_packet_gre6_recvraw, 0, os_gre6_socket(), NULL);
 	return 0;
 }

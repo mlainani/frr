@@ -88,7 +88,8 @@ static void nhrp_interface_update_source(struct interface *ifp)
 	nifp->linkidx = nifp->nbmaifp->ifindex;
 	debugf(NHRP_DEBUG_IF, "%s: bound device index changed to %d", ifp->name,
 	       nifp->linkidx);
-	netlink_gre_set_link(ifp->ifindex, nifp->linkidx);
+	netlink_gre_set_link(ifp->ifindex, nifp->linkidx,
+			     ifp->ll_type == ZEBRA_LLT_IP6GRE ? "ip6gre": "gre");
 }
 
 static void nhrp_interface_interface_notifier(struct notifier_block *n,

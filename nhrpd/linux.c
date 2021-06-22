@@ -27,11 +27,20 @@
 #include <linux/if_tunnel.h>
 #include <linux/limits.h>
 
+#include "debug.h"
 #include "nhrp_protocol.h"
 #include "os.h"
 #include "netlink.h"
 
 static int nhrp_socket_fd = -1;
+
+/*
+ * Used for NHRP message transmission over an IPv6 GRE tunnel. A SOCK_DGRAM cannot be
+ * used because in this case because the link-layer "hardware address" is an IPv6
+ * address (16 bytes) whose size exceeds the 8 bytes of the sockaddr_ll structure's
+ * sll_addr field.
+ */
+static int nhrp_gre6_socket_fd = -1;
 
 int os_socket(void)
 {
@@ -39,6 +48,18 @@ int os_socket(void)
 		nhrp_socket_fd =
 			socket(PF_PACKET, SOCK_DGRAM, htons(ETH_P_NHRP));
 	return nhrp_socket_fd;
+}
+
+/*
+ * The returned value of os_socket() above is not checked so we're not adding a
+ * lot of harm. This should be fixed however.
+ */
+int os_gre6_socket(void)
+{
+	if (nhrp_gre6_socket_fd < 0)
+		nhrp_gre6_socket_fd =
+			socket(PF_PACKET, SOCK_RAW, htons(ETH_P_NHRP));
+	return nhrp_gre6_socket_fd;
 }
 
 int os_sendmsg(const uint8_t *buf, size_t len, int ifindex, const uint8_t *addr,
@@ -56,17 +77,28 @@ int os_sendmsg(const uint8_t *buf, size_t len, int ifindex, const uint8_t *addr,
 	};
 	int status;
 
-	if (addrlen > sizeof(lladdr.sll_addr))
-		return -1;
-
 	memset(&lladdr, 0, sizeof(lladdr));
 	lladdr.sll_family = AF_PACKET;
 	lladdr.sll_protocol = htons(ETH_P_NHRP);
 	lladdr.sll_ifindex = ifindex;
-	lladdr.sll_halen = addrlen;
-	memcpy(lladdr.sll_addr, addr, addrlen);
 
-	status = sendmsg(nhrp_socket_fd, &msg, 0);
+	/*
+	 * Use a SOCK_RAW socket if sending over an IPv6 GRE tunnel. This must be
+	 * a point-to-point interface for the transmission to succeed, that is a
+	 * remote and local IPv6 address have to be configured.
+	 */
+	if (addrlen > sizeof(lladdr.sll_addr)) {
+		lladdr.sll_halen = sizeof(lladdr.sll_addr);
+		status = sendmsg(nhrp_gre6_socket_fd, &msg, 0);
+		debugf(NHRP_DEBUG_KERNEL, "nhrp_gre6_socket_fd: %d  len: %d  ifindex: %d  status: %d",
+		       nhrp_gre6_socket_fd, len, ifindex, status);
+	}
+	else {
+		lladdr.sll_halen = addrlen;
+		memcpy(lladdr.sll_addr, addr, addrlen);
+		status = sendmsg(nhrp_socket_fd, &msg, 0);
+	}
+
 	if (status < 0)
 		return -1;
 
@@ -103,6 +135,33 @@ int os_recvmsg(uint8_t *buf, size_t *len, int *ifindex, uint8_t *addr,
 			*addrlen = 0;
 		}
 	}
+
+	return 0;
+}
+
+/*
+ * Receiving on a point-to-point interface whose remote end is the NHS 
+ */
+int os_gre6_recvmsg(uint8_t *buf, size_t *len, int *ifindex)
+{
+	struct sockaddr_ll lladdr;
+	struct iovec iov = {
+		.iov_base = buf, .iov_len = *len,
+	};
+	struct msghdr msg = {
+		.msg_name = &lladdr,
+		.msg_namelen = sizeof(lladdr),
+		.msg_iov = &iov,
+		.msg_iovlen = 1,
+	};
+	int r;
+
+	r = recvmsg(nhrp_gre6_socket_fd, &msg, MSG_DONTWAIT);
+	if (r < 0)
+		return r;
+
+	*len = r;
+	*ifindex = lladdr.sll_ifindex;
 
 	return 0;
 }

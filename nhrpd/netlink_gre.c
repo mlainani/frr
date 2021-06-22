@@ -111,7 +111,7 @@ err:
 	zbuf_free(zb);
 }
 
-void netlink_gre_set_link(unsigned int ifindex, unsigned int link_index)
+void netlink_gre_set_link(unsigned int ifindex, unsigned int link_index, const char *link_kind)
 {
 	struct nlmsghdr *n;
 	struct ifinfomsg *ifi;
@@ -129,7 +129,7 @@ void netlink_gre_set_link(unsigned int ifindex, unsigned int link_index)
 		.ifi_index = ifindex,
 	};
 	rta_info = znl_rta_nested_push(zb, IFLA_LINKINFO);
-	znl_rta_push(zb, IFLA_INFO_KIND, "gre", 3);
+	znl_rta_push(zb, IFLA_INFO_KIND, link_kind, strlen(link_kind));
 	rta_data = znl_rta_nested_push(zb, IFLA_INFO_DATA);
 
 	znl_rta_push_u32(zb, IFLA_GRE_LINK, link_index);
