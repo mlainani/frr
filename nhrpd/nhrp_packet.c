@@ -368,12 +368,18 @@ static int nhrp_packet_gre6_recvraw(struct thread *t)
 
 #if 1
 	{
+		afi_t afi;
 		struct nhrp_interface *nifp = ifp->info;
-		struct nhrp_nhs *nhs;
+		struct nhrp_nhs *nhs = NULL;
 		struct nhrp_registration *reg;
 		char buf[SU_ADDRSTRLEN];
 
-		nhs = list_next(&nifp->afi[AFI_IP6].nhslist_head, struct nhrp_nhs, nhslist_entry);
+		for (afi = 0; afi < AFI_MAX; afi++) {
+			nhs = list_next(&nifp->afi[afi].nhslist_head, struct nhrp_nhs, nhslist_entry);
+			if (nhs != NULL)
+				break;
+		}
+
 		if (nhs == NULL)
 			goto err;
 
