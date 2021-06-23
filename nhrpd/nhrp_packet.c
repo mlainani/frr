@@ -345,9 +345,7 @@ static int nhrp_packet_gre6_recvraw(struct thread *t)
 	struct zbuf *zb;
 	struct interface *ifp;
 	struct nhrp_peer *p;
-	union sockunion remote_nbma;
-	uint8_t addr[64];
-	size_t len, addrlen;
+	size_t len;
 
 	thread_add_read(master, nhrp_packet_gre6_recvraw, 0, fd, NULL);
 
@@ -356,31 +354,39 @@ static int nhrp_packet_gre6_recvraw(struct thread *t)
 		return 0;
 
 	len = zbuf_size(zb);
-	addrlen = sizeof(addr);
 	if (os_gre6_recvmsg(zb->buf, &len, &ifindex) < 0)
 		goto err;
 
 	debugf(NHRP_DEBUG_EVENT, "len: %d  ifindex: %d", len, ifindex);
-	goto err;
 
 	zb->head = zb->buf;
 	zb->tail = zb->buf + len;
-
-	switch (addrlen) {
-	case 4:
-		sockunion_set(&remote_nbma, AF_INET, addr, addrlen);
-		break;
-	default:
-		goto err;
-	}
 
 	ifp = if_lookup_by_index(ifindex, VRF_DEFAULT);
 	if (!ifp)
 		goto err;
 
-	p = nhrp_peer_get(ifp, &remote_nbma);
-	if (!p)
-		goto err;
+#if 1
+	{
+		struct nhrp_interface *nifp = ifp->info;
+		struct nhrp_nhs *nhs;
+		struct nhrp_registration *reg;
+		char buf[SU_ADDRSTRLEN];
+
+		nhs = list_next(&nifp->afi[AFI_IP6].nhslist_head, struct nhrp_nhs, nhslist_entry);
+		if (nhs == NULL)
+			goto err;
+
+		reg = list_next(&nhs->reglist_head, struct nhrp_registration, reglist_entry);
+		if (reg == NULL)
+			goto err;
+
+		debugf(NHRP_DEBUG_EVENT, "peer NBMA addr: %s",
+		       sockunion2str(&reg->peer->vc->remote.nbma, buf, sizeof(buf)));
+
+		p = reg->peer;
+	}
+#endif
 
 	nhrp_peer_recv(p, zb);
 	nhrp_peer_unref(p);
