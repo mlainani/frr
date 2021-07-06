@@ -251,6 +251,7 @@ static void nhrp_interface_update_address(struct interface *ifp, afi_t afi,
 			continue;
 	}
 
+#if 0
 	/* On NHRP interfaces a host prefix is required */
 	if (best && if_ad->configured
 	    && best->address->prefixlen != 8 * prefix_blen(best->address)) {
@@ -258,6 +259,7 @@ static void nhrp_interface_update_address(struct interface *ifp, afi_t afi,
 			    prefix2str(best->address, buf, sizeof(buf)));
 		best = NULL;
 	}
+#endif
 
 	/* Update address if it changed */
 	if (best)
