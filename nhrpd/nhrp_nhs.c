@@ -195,11 +195,35 @@ static int nhrp_reg_send_req(struct thread *t)
 	hdr->u.request_id = htonl(nhrp_reqid_alloc(&nhrp_packet_reqid,
 						   &r->reqid, nhrp_reg_reply));
 
-	/* FIXME: push CIE for each local protocol address */
-	cie = nhrp_cie_push(zb, NHRP_CODE_SUCCESS, NULL, NULL);
-	cie->prefix_length = 0xff;
-	cie->holding_time = htons(if_ad->holdtime);
-	cie->mtu = htons(if_ad->mtu);
+	if (sockunion_family(dst_proto) == AF_INET6) {
+		struct connected *c;
+		struct listnode *cnode;
+
+		for (ALL_LIST_ELEMENTS_RO(ifp->connected, cnode, c)) {
+
+			/*
+			 * prefix2str(c->address, buf1, sizeof(buf1));
+			 * debugf(NHRP_DEBUG_COMMON, "NHS: prefix: %s", buf1);
+			 */
+
+			if (PREFIX_FAMILY(c->address) == AF_INET6 &&
+			    IN6_IS_ADDR_LINKLOCAL(&c->address->u.prefix6)) {
+				union sockunion proto;
+				prefix2sockunion(c->address, &proto);
+				cie = nhrp_cie_push(zb, NHRP_CODE_SUCCESS, &nifp->nbma, &proto);
+				cie->prefix_length = 0x80;
+				cie->holding_time = htons(if_ad->holdtime);
+				cie->mtu = htons(if_ad->mtu);
+			}
+		}
+	}
+	else {
+		/* FIXME: push CIE for each local protocol address */
+		cie = nhrp_cie_push(zb, NHRP_CODE_SUCCESS, NULL, NULL);
+		cie->prefix_length = 0xff;
+		cie->holding_time = htons(if_ad->holdtime);
+		cie->mtu = htons(if_ad->mtu);
+	}
 
 	nhrp_ext_request(zb, hdr, ifp);
 
