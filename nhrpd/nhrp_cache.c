@@ -206,7 +206,8 @@ static void nhrp_cache_peer_notifier(struct notifier_block *n,
 		nhrp_cache_update_route(c);
 		break;
 	case NOTIFY_PEER_DOWN:
-	case NOTIFY_PEER_IFCONFIG_CHANGED:
+	case NOTIFY_PEER_V4_IFCONFIG_CHANGED:
+	case NOTIFY_PEER_V6_IFCONFIG_CHANGED:
 		notifier_call(&c->notifier_list, NOTIFY_CACHE_DOWN);
 		nhrp_cache_update_binding(c, c->cur.type, -1, NULL, 0, NULL);
 		break;
@@ -325,7 +326,8 @@ static void nhrp_cache_newpeer_notifier(struct notifier_block *n,
 		}
 		break;
 	case NOTIFY_PEER_DOWN:
-	case NOTIFY_PEER_IFCONFIG_CHANGED:
+	case NOTIFY_PEER_V4_IFCONFIG_CHANGED:
+	case NOTIFY_PEER_V6_IFCONFIG_CHANGED:
 		nhrp_cache_reset_new(c);
 		break;
 	}

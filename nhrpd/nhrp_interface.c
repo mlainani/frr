@@ -111,7 +111,8 @@ static void nhrp_interface_interface_notifier(struct notifier_block *n,
 		nhrp_interface_update_mtu(nifp->ifp, AFI_IP);
 		nhrp_interface_update_source(nifp->ifp);
 		break;
-	case NOTIFY_INTERFACE_ADDRESS_CHANGED:
+	case NOTIFY_INTERFACE_V4_ADDRESS_CHANGED:
+	case NOTIFY_INTERFACE_V6_ADDRESS_CHANGED:
 		nifp->nbma = nbmanifp->afi[afi].addr;
 		nhrp_interface_update(nifp->ifp);
 		notifier_call(&nifp->notifier_list,
@@ -289,7 +290,9 @@ static void nhrp_interface_update_address(struct interface *ifp, afi_t afi,
 						  0, NULL);
 	}
 
-	notifier_call(&nifp->notifier_list, NOTIFY_INTERFACE_ADDRESS_CHANGED);
+	notifier_call(&nifp->notifier_list, afi == AFI_IP ?
+		      NOTIFY_INTERFACE_V4_ADDRESS_CHANGED :
+		      NOTIFY_INTERFACE_V6_ADDRESS_CHANGED);
 }
 
 void nhrp_interface_update(struct interface *ifp)
@@ -431,7 +434,8 @@ void nhrp_interface_set_protection(struct interface *ifp, const char *profile,
 	nifp->ipsec_fallback_profile =
 		fallback_profile ? strdup(fallback_profile) : NULL;
 
-	notifier_call(&nifp->notifier_list, NOTIFY_INTERFACE_ADDRESS_CHANGED);
+	/* TODO: understand if IPSec can still be used for a GRE IPv6 tunnel */
+	notifier_call(&nifp->notifier_list, NOTIFY_INTERFACE_V4_ADDRESS_CHANGED);
 }
 
 void nhrp_interface_set_source(struct interface *ifp, const char *ifname)

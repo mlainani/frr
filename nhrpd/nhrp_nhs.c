@@ -132,8 +132,39 @@ static void nhrp_reg_peer_notify(struct notifier_block *n, unsigned long cmd)
 	switch (cmd) {
 	case NOTIFY_PEER_UP:
 	case NOTIFY_PEER_DOWN:
-	case NOTIFY_PEER_IFCONFIG_CHANGED:
 	case NOTIFY_PEER_MTU_CHANGED:
+		debugf(NHRP_DEBUG_COMMON, "NHS: Flush timer for %s",
+		       sockunion2str(&r->peer->vc->remote.nbma, buf,
+				     sizeof(buf)));
+		THREAD_TIMER_OFF(r->t_register);
+		thread_add_timer_msec(master, nhrp_reg_send_req, r, 10,
+				      &r->t_register);
+		break;
+
+	case NOTIFY_PEER_V4_IFCONFIG_CHANGED:
+		/*
+		 * Do not cancel the scheduled tranmission of a registration
+		 * request with an IPv6 destination protocol address.
+		 */
+		if (sockunion_family(&r->proto_addr) == AF_INET6)
+		  break;
+
+		debugf(NHRP_DEBUG_COMMON, "NHS: Flush timer for %s",
+		       sockunion2str(&r->peer->vc->remote.nbma, buf,
+				     sizeof(buf)));
+		THREAD_TIMER_OFF(r->t_register);
+		thread_add_timer_msec(master, nhrp_reg_send_req, r, 10,
+				      &r->t_register);
+		break;
+
+	case NOTIFY_PEER_V6_IFCONFIG_CHANGED:
+		/*
+		 * Do not cancel the scheduled tranmission of a registration
+		 * request with an IPv4 destination protocol address.
+		 */
+		if (sockunion_family(&r->proto_addr) == AF_INET)
+		  break;
+
 		debugf(NHRP_DEBUG_COMMON, "NHS: Flush timer for %s",
 		       sockunion2str(&r->peer->vc->remote.nbma, buf,
 				     sizeof(buf)));

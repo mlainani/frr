@@ -141,8 +141,11 @@ static void nhrp_peer_ifp_notify(struct notifier_block *n, unsigned long cmd)
 			__nhrp_peer_check(p);
 		}
 		/* fallthru */ /* to post config update */
-	case NOTIFY_INTERFACE_ADDRESS_CHANGED:
-		notifier_call(&p->notifier_list, NOTIFY_PEER_IFCONFIG_CHANGED);
+	case NOTIFY_INTERFACE_V4_ADDRESS_CHANGED:
+		notifier_call(&p->notifier_list, NOTIFY_PEER_V4_IFCONFIG_CHANGED);
+		break;
+	case NOTIFY_INTERFACE_V6_ADDRESS_CHANGED:
+		notifier_call(&p->notifier_list, NOTIFY_PEER_V6_IFCONFIG_CHANGED);
 		break;
 	case NOTIFY_INTERFACE_MTU_CHANGED:
 		notifier_call(&p->notifier_list, NOTIFY_PEER_MTU_CHANGED);
