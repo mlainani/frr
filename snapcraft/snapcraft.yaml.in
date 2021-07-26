@@ -9,6 +9,10 @@ description: BGP/OSPFv2/OSPFv3/ISIS/RIP/RIPng/PIM/LDP/EIGRP/BFD routing daemon
  FRRouting (frr) is a fork of Quagga.
 confinement: strict
 grade: devel
+base: core20
+
+environment:
+    LD_LIBRARY_PATH: $SNAP/usr/local/lib
 
 apps:
     vtysh:
@@ -261,7 +265,7 @@ parts:
         source-type: git
         source-tag: v0.7.0
         plugin: cmake
-        configflags:
+        cmake-parameters:
            - -DCMAKE_BUILD_TYPE=Release
     libyang:
         build-packages:
@@ -275,7 +279,7 @@ parts:
         source-type: git
         source-tag: v1.0.184
         plugin: cmake
-        configflags:
+        cmake-parameters:
            - -DCMAKE_INSTALL_PREFIX:PATH=/usr
            - -DENABLE_LYD_PRIV=ON
            - -DENABLE_CACHE=ON
@@ -293,16 +297,13 @@ parts:
            - texinfo
            - libncurses5-dev
            - texlive-latex-base
-           - texlive-generic-recommended
            - libcap-dev
            - imagemagick
            - ghostscript
            - groff
-           - hardening-wrapper
            - libpcre3-dev
            - chrpath
            - pkg-config
-           - libjson-c-dev
            - libc-ares-dev
            - bison
            - flex
@@ -315,15 +316,13 @@ parts:
            - logrotate
            - libcap2
            - libtinfo5
-           - libreadline6
-           - libjson-c2
            - libc-ares2
            - libatm1
            - libprotobuf-c1
            - libdb5.3
         plugin: autotools
         source: ../frr-@PACKAGE_VERSION@.tar.gz
-        configflags:
+        autotools-configure-parameters:
             - --enable-vtysh
             - --enable-isisd
             - --enable-watchfrr
@@ -337,7 +336,6 @@ parts:
             - --enable-pimd
             - --enable-ldpd
             - --enable-fpm
-            - --enable-protobuf
             - --enable-rpki
             - --enable-vrrpd
             - --enable-configfile-mask=0640
@@ -392,6 +390,5 @@ parts:
 
 passthrough:
     layout:
-         /usr/lib/x86_64-linux-gnu/libyang1:
-             bind: $SNAP/usr/lib/x86_64-linux-gnu/libyang1
-
+         /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libyang1:
+             bind: $SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libyang1
