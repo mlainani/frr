@@ -1,4 +1,4 @@
-name: iotr-frr
+name: iotr-fw-frr
 version: @VERSION@
 summary: FRRouting BGP/OSPFv2/OSPFv3/ISIS/RIP/RIPng/PIM/LDP/EIGRP/BFD routing daemon
 description: BGP/OSPFv2/OSPFv3/ISIS/RIP/RIPng/PIM/LDP/EIGRP/BFD routing daemon
