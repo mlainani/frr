@@ -11,6 +11,12 @@ confinement: strict
 grade: devel
 base: core20
 
+slots:
+  frr-conf-files:
+    interface: content
+    write:
+      - $SNAP_DATA
+
 environment:
     LD_LIBRARY_PATH: $SNAP/usr/local/lib
 
