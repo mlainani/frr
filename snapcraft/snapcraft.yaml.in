@@ -8,7 +8,7 @@ description: BGP/OSPFv2/OSPFv3/ISIS/RIP/RIPng/PIM/LDP/EIGRP/BFD routing daemon
  as well as the IPv6 versions of these.
  FRRouting (frr) is a fork of Quagga.
 confinement: strict
-grade: devel
+grade: stable
 base: core20
 
 slots:
