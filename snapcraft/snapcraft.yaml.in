@@ -160,7 +160,7 @@ apps:
             - network-bind
             - network-control
     bgpd-debug:
-        command: sbin/bgpd -f $SNAP_DATA/bgpd.conf --pid_file $SNAP_DATA/bgpd.pid --socket $SNAP_DATA/zsock --vty_socket $SNAP_DATA --moduledir $SNAP/lib/frr/modules
+        command: sbin/bgpd -f $SNAP_DATA/bgpd.conf --pid_file $SNAP_DATA/bgpd.pid --socket $SNAP_DATA/zsock --vty_socket $SNAP_DATA --moduledir $SNAP/usr/local/lib/frr/modules
         plugs:
             - network
             - network-bind
@@ -326,6 +326,7 @@ parts:
            - libatm1
            - libprotobuf-c1
            - libdb5.3
+           - frr-rpki-rtrlib
         plugin: autotools
         source: ../frr-@PACKAGE_VERSION@.tar.gz
         autotools-configure-parameters:
