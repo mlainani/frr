@@ -478,11 +478,13 @@ static int vici_reconnect(struct thread *t)
 	if (vici->fd >= 0)
 		return 0;
 
-	fd = sock_open_unix("/var/run/charon.vici");
+	fd = sock_open_unix("/var/snap/iotr-cr-strongswan/current/charon.vici");
 	if (fd < 0) {
-		debugf(NHRP_DEBUG_VICI,
-		       "%s: failure connecting VICI socket: %s", __func__,
-		       strerror(errno));
+		/*
+		 * debugf(NHRP_DEBUG_VICI,
+		 *        "%s: failure connecting VICI socket: %s", __func__,
+		 *        strerror(errno));
+		 */
 		thread_add_timer(master, vici_reconnect, vici, 2,
 				 &vici->t_reconnect);
 		return 0;
