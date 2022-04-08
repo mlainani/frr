@@ -337,11 +337,28 @@ void nhrp_interface_update(struct interface *ifp)
 
 int nhrp_ifp_create(struct interface *ifp)
 {
+	struct vrf *vrf = vrf_lookup_by_id(VRF_DEFAULT);
+	struct interface *ifacep;
+	struct nhrp_interface *nifp;
+
 	debugf(NHRP_DEBUG_IF, "if-add: %s, ifindex: %u, hw_type: %d %s",
 	       ifp->name, ifp->ifindex, ifp->ll_type,
 	       if_link_type_str(ifp->ll_type));
 
 	nhrp_interface_update_nbma(ifp);
+
+	/*
+	 * Handle the case where the newly created interface was previously set
+	 * as source for a tunnel
+	 */
+	FOR_ALL_INTERFACES (vrf, ifacep) {
+	  nifp = ifacep->info;
+	  if (nifp->source) {
+	    if (strcmp(nifp->source, ifp->name) == 0) {
+	      nhrp_interface_update_nbma(nifp->ifp);
+	    }
+	  }
+	}
 
 	return 0;
 }
