@@ -11,6 +11,13 @@ confinement: strict
 grade: stable
 base: core20
 
+plugs:
+  strongswan:
+    interface: content
+    content: socket-directory
+    target: $SNAP_DATA
+    default-provider: iotr-cr-strongswan
+
 slots:
   frr-conf-files:
     interface: content

@@ -473,18 +473,39 @@ static int vici_reconnect(struct thread *t)
 {
 	struct vici_conn *vici = THREAD_ARG(t);
 	int fd;
+	char *snap_data_path;
+#define SOCK_PATH_SIZE	256
+	char sock_path[SOCK_PATH_SIZE];
+
 
 	vici->t_reconnect = NULL;
 	if (vici->fd >= 0)
 		return 0;
 
-	fd = sock_open_unix("/var/snap/iotr-cr-strongswan/current/charon.vici");
+	snap_data_path = getenv("SNAP_DATA");
+	if (snap_data_path == NULL) {
+		fd = sock_open_unix("/var/run/charon.vici");
+	}
+	else {
+		if (snprintf(sock_path, SOCK_PATH_SIZE,
+			     "%s/charon.vici",
+			     snap_data_path) >= SOCK_PATH_SIZE)
+		{
+			debugf(NHRP_DEBUG_VICI,
+			       "%s: failure building VICI socket path", __func__);
+			return 0;
+		}
+		else {
+			debugf(NHRP_DEBUG_VICI, "%s: VICI socket path is %s",
+			       __func__, sock_path);
+			fd = sock_open_unix(sock_path);
+		}
+	}
+
 	if (fd < 0) {
-		/*
-		 * debugf(NHRP_DEBUG_VICI,
-		 *        "%s: failure connecting VICI socket: %s", __func__,
-		 *        strerror(errno));
-		 */
+		debugf(NHRP_DEBUG_VICI,
+		       "%s: failure connecting VICI socket: %s", __func__,
+		       strerror(errno));
 		thread_add_timer(master, vici_reconnect, vici, 2,
 				 &vici->t_reconnect);
 		return 0;
