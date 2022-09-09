@@ -244,6 +244,83 @@ int nhrp_route_read(ZAPI_CALLBACK_ARGS)
 	nhrp_route_update_zebra(&api.prefix, &nexthop_addr, ifp);
 	nhrp_shortcut_prefix_change(&api.prefix, !added);
 
+	if (added && sockunion_family(&nexthop_addr) != AF_UNSPEC && ifp &&
+	    (api.prefix.family == AF_INET6) && is_default_prefix(&api.prefix)) {
+		struct prefix nexthop_prefix = {0};
+		struct listnode *cnode;
+		struct connected *c, *default_gw_iface_prefix;
+		char prfx_buf[2][PREFIX_STRLEN] = {{0}, {0}};
+		union sockunion default_gw_iface_addr;
+		struct nhrp_interface *nifp = ifp->info;
+		struct nhrp_afi_data *if_ad = &nifp->afi[AFI_IP6];
+		struct nhrp_cache *nc;
+
+		debugf(NHRP_DEBUG_ROUTE, "IPv6 default route added via %s",
+		       ifp->name);
+
+		sockunion2hostprefix(&nexthop_addr, &nexthop_prefix);
+
+		default_gw_iface_prefix = NULL;
+		for (ALL_LIST_ELEMENTS_RO(ifp->connected, cnode, c)) {
+			if (PREFIX_FAMILY(c->address) != AF_INET6)
+				continue;
+
+			if (IN6_IS_ADDR_LINKLOCAL(&c->address->u.prefix6))
+				continue;
+
+			if (!prefix_match(c->address, &nexthop_prefix))
+				continue;
+
+			default_gw_iface_prefix = c;
+			break;
+		}
+
+		if (!default_gw_iface_prefix)
+			goto out;
+
+		debugf(NHRP_DEBUG_ROUTE, "%s: prefix %s includes dflt gw addr %s",
+		       ifp->name,
+		       prefix2str(default_gw_iface_prefix->address, prfx_buf[0],
+				  sizeof(prfx_buf[0])),
+		       prefix2str(&nexthop_prefix, prfx_buf[1],
+				  sizeof(prfx_buf[1])));
+
+		prefix2sockunion(default_gw_iface_prefix->address,
+				 &default_gw_iface_addr);
+
+		if (sockunion_same(&default_gw_iface_addr, &if_ad->addr)) {
+			debugf(NHRP_DEBUG_ROUTE, "%s: already using %s as the primary IPv6 address",
+			       ifp->name,
+			       prefix2str(default_gw_iface_prefix->address, prfx_buf[0],
+					  sizeof(prfx_buf[0])));
+			goto out;
+		}
+
+		debugf(NHRP_DEBUG_ROUTE, "%s: using %s as the primary IPv6 address (was %s)",
+		       ifp->name,
+		       prefix2str(default_gw_iface_prefix->address, prfx_buf[0], sizeof(prfx_buf[0])),
+		       sockunion2str(&if_ad->addr, prfx_buf[1], sizeof(prfx_buf[1])));
+
+		if (sockunion_family(&if_ad->addr) != AF_UNSPEC) {
+			nc = nhrp_cache_get(ifp, &if_ad->addr, 0);
+			if (nc)
+				nhrp_cache_update_binding(nc, NHRP_CACHE_LOCAL, -1,
+							  NULL, 0, NULL);
+		}
+
+		if_ad->addr = default_gw_iface_addr;
+
+		if (if_ad->configured && sockunion_family(&if_ad->addr) != AF_UNSPEC) {
+			nc = nhrp_cache_get(ifp, &default_gw_iface_addr, 1);
+			if (nc)
+				nhrp_cache_update_binding(nc, NHRP_CACHE_LOCAL, 0, NULL,
+							  0, NULL);
+		}
+
+		notifier_call(&nifp->notifier_list, NOTIFY_INTERFACE_V6_ADDRESS_CHANGED);
+	}
+out:
+
 	return 0;
 }
 
