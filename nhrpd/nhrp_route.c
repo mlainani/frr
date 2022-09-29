@@ -216,6 +216,14 @@ int nhrp_route_read(ZAPI_CALLBACK_ARGS)
 	if (api.type == ZEBRA_ROUTE_NHRP)
 		return 0;
 
+	/*
+	 * Ignore policy-based routing routes. A default IPv6 route added to a
+	 * routing table other than main will interfere with our custom NBMA
+	 * interface IPv6 address selection.
+	 */
+	if (api.type == ZEBRA_ROUTE_PBR)
+		return 0;
+
 	sockunion_family(&nexthop_addr) = AF_UNSPEC;
 	if (CHECK_FLAG(api.message, ZAPI_MESSAGE_NEXTHOP)) {
 		api_nh = &api.nexthops[0];
@@ -244,8 +252,8 @@ int nhrp_route_read(ZAPI_CALLBACK_ARGS)
 	nhrp_route_update_zebra(&api.prefix, &nexthop_addr, ifp);
 	nhrp_shortcut_prefix_change(&api.prefix, !added);
 
-	if (added && sockunion_family(&nexthop_addr) != AF_UNSPEC && ifp &&
-	    (api.prefix.family == AF_INET6) && is_default_prefix(&api.prefix)) {
+	if (added && (api.prefix.family == AF_INET6) &&
+	    sockunion_family(&nexthop_addr) != AF_UNSPEC && ifp) {
 		struct prefix nexthop_prefix = {0};
 		struct listnode *cnode;
 		struct connected *c, *default_gw_iface_prefix;
@@ -255,10 +263,39 @@ int nhrp_route_read(ZAPI_CALLBACK_ARGS)
 		struct nhrp_afi_data *if_ad = &nifp->afi[AFI_IP6];
 		struct nhrp_cache *nc;
 
-		debugf(NHRP_DEBUG_ROUTE, "IPv6 default route added via %s",
-		       ifp->name);
+		if (is_default_prefix(&api.prefix)) {
+			debugf(NHRP_DEBUG_ROUTE, "IPv6 default route added via %s",
+			       ifp->name);
+			sockunion2hostprefix(&nexthop_addr, &nexthop_prefix);
+		}
+		else if (!memcmp(&nexthop_addr.sin6.sin6_addr,
+				 &in6addr_any, sizeof(struct in6_addr))) {
+			struct prefix p = {0};
+			struct route_node *rn;
+			struct route_info *ri;
 
-		sockunion2hostprefix(&nexthop_addr, &nexthop_prefix);
+			debugf(NHRP_DEBUG_ROUTE, "on-link route added via %s",
+			       ifp->name);
+
+			if (!zebra_rib[AFI_IP6])
+				goto out;
+
+			p.family = AF_INET6;
+			rn = route_node_lookup(zebra_rib[AFI_IP6], &p);
+			if (!rn)
+				goto out;
+
+			ri = rn->info;
+
+			debugf(NHRP_DEBUG_ROUTE, "current IPv6 dflt gw %s via %s",
+			       sockunion2str(&ri->via, buf[0], sizeof(buf[0])),
+			       ri->ifp->name);
+
+			if (ifp != ri->ifp)
+			  goto out;
+
+			sockunion2hostprefix(&ri->via, &nexthop_prefix);
+		}
 
 		default_gw_iface_prefix = NULL;
 		for (ALL_LIST_ELEMENTS_RO(ifp->connected, cnode, c)) {
